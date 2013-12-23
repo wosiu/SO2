@@ -8,35 +8,26 @@ wolne_zasoby[k] = {N,...,N};
 // SERWER:
 
 // do serwera przyszlo zapytanie o zasob k:
-if ( żodyn nie czeka na pare, np: czeka_na_para_PID[k][0] == -1 ) {
-	czeka_na_para_PID[k][0] = myPID;
-	// zrob watek, nadaj mu WID, odpal
+if ( żodyn nie czeka na pare, np: czeka_na_para_PID[k] == -1 ) {
+	czeka_na_para_PID[k] = myPID;
 } else {
-	para_PID[k][1] = myPID;
-	signal( na_pare[k] );
+	partnerPID = czeka_na_para_PID[k];
+	czeka_na_para_PID[k] = -1;
+	// zrob watek, nadaj mu WID, odpal z argumentami myPID, partnerPID
 }
 
-// do serwera przyszla informacja o zakonczeniu klienta
-wid = PIDtoWID[ PID ]; // pobieram wewnetrzne id watku, ktory zajmuje sie klientem
-signal ( zakonczenie_klienta[wid] )
 
 
 // WATEK:
-
-if ( żodyn nie czeka na pare, np.: czeka_na_para_PID[k][0] == -1 ) {
-	wait( na_pare[k] );
-}
-// wyszedl, wiec jest do pary
-PID[0] = czeka_na_para_PID[k][0];
-PID[1] = czeka_na_para_PID[k][1];
-czeka_na_para_PID[k][0] = czeka_na_para_PID[k][1] = -1;
+pthread_mutex_lock( mutex[k] );
 
 // sprawdza zasoby:
 // czy ktos inny czeka na zasoby
 if ( not empty( na_zasob[k] ) ) {
-	wait( inni[k] );
+	wait( inni[k], mutex[k] );
+	lock( mutex[k] );
 }
-// nikt inny nie czeka na zasob
+// nikt inny nie czeka na zasob, wiec:
 if ( n + m > wolne_zasoby[k] ) {
 	czeka_na_zasoby[k] = n + m;
 	wait( na_zasob[k] );
@@ -53,9 +44,8 @@ signal( inni[k] );
 // musi to byc w ochronie na wypadek, gdyby klient zdazyl wyslac zakonczenie
 // nim obecny watek usnie
 
-// czeka na info od serwera, ze klienci zakonczyli
-for (int i = 0; i < 2; i++ )
-	wait( zakonczenie_klienta[ wid_procesu ] );
+// czeka info od klientow, ze zakonczyli
+zawiesza sie na read od klientow
 
 // zwalnia zasoby
 wolne_zasoby[k] += n + m
