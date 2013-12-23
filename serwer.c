@@ -18,10 +18,25 @@ void exit_server(int sig)
         syserr("msgctl RMID");
     exit(0);
 }
+/*
+void *watek (void *data)
+{
+  pid_t thread_pid = getpid();
+
+  printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d \
+		zasobów.\n", thread_pid, m, n, k, pid0, pid1, wolne_zasoby[k] );
+
+  return 0;
+}
+*/
+void init()
+{
+
+}
 
 int main()
 {
-    Mesg mesg;
+    ClientServerMsg mesg;
     int	n, filefd;
     char errmesg[256];
 
@@ -33,13 +48,18 @@ int main()
 
     for(;;)
     {
-        if ((n = msgrcv(msg_qid, &mesg, MAXMESGDATA, 1L, 0)) <= 0)
+        if ((n = msgrcv(msg_qid, &mesg, 6, 1L, 0)) <= 0)
             syserr("msgrcv");
 
-        mesg.mesg_data[n] = '\0';		/* null terminate filename */
+		printf("n: %d\n", n);
+		//printf("sizeof: %lu %lu %lu %lu\n", sizeof(mesg), sizeof(char), sizeof(int), sizeof(long));
+        //mesg.mesg_data[n] = '\0';		/* null terminate filename */
+        mesg.k = 42;
+        mesg.n = 43;
+        mesg.pid = 44;
         mesg.mesg_type = 2L;		/* send messages of this type */
 
-		if (msgsnd(msg_qid, (char *) &mesg, n, 0) != 0)
+		if (msgsnd(msg_qid, (char *) &mesg, 6, 0) != 0)
 			syserr("msgsnd");
     }
 }

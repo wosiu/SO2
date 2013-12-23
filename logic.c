@@ -1,10 +1,4 @@
-globalne:
-czeka_na_para_PID[k][0] = czeka_na_para_PID[k][1] = -1;
-wolne_zasoby[k] = {N,...,N};
-
-
-// mutex gdzie trzeba, ale najpierw musze poczytac o co cho
-
+/*
 // SERWER:
 
 // do serwera przyszlo zapytanie o zasob k:
@@ -50,4 +44,4 @@ wolne_zasoby[k] += n + m
 while ( czeka_na_zasoby[k] <= wolne_zasoby[k] ) {
 	signal( na_zasob[k] );
 }
-unlock( mutex[k] );
+unlock( mutex[k] );*/

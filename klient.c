@@ -9,31 +9,25 @@
 
 int main()
 {
-    Mesg mesg;
+    ClientServerMsg mesg;
     int id, n;
 
     if ( (id = msgget(MKEY, 0)) == -1)
         syserr("msgget");
 
     printf("File name: ");
-    if (fgets(mesg.mesg_data, MAXMESGDATA, stdin) == 0)
+    if (scanf("%hu",&mesg.pid) == 0)
         syserr("fgets");
 
-    n = strlen(mesg.mesg_data);
-    if (mesg.mesg_data[n-1] == '\n')
-        n--;				/* ignore the newline from fgets() */
-    mesg.mesg_data[n] = '\0';		/* overwrite newline at end */
     mesg.mesg_type = 1L;			/* send messages of this type */
-    if (msgsnd(id, (char *) &mesg, n, 0) != 0)
+    if (msgsnd(id, (char *) &mesg, ClientServerMsgSize, 0) != 0)
         syserr("msgsnd");
 
-    if ((n = msgrcv(id, &mesg, MAXMESGDATA, 2L, 0)) < 0)
+	printf("ClientServerMsgSize: %d\n", ClientServerMsgSize);
+    if ((n = msgrcv(id, &mesg, 6, 2L, 0)) < 0)
     	syserr("msgrcv");
 
-	if (write(1, mesg.mesg_data, n) != n)
-		syserr("write");
+	printf("%hu %hu %hu\n", mesg.k, mesg.n, mesg.pid);
 
-    if (n < 0)
-        syserr("msgrcv");
     return 0;
 }
