@@ -17,39 +17,37 @@ if ( żodyn nie czeka na pare, np: czeka_na_para_PID[k] == -1 ) {
 }
 
 
-
 // WATEK:
-pthread_mutex_lock( mutex[k] );
+lock( mutex[k] );
 
-// sprawdza zasoby:
-// czy ktos inny czeka na zasoby
-if ( not empty( na_zasob[k] ) ) {
+// czy ktos inny juz czeka na zasoby
+// if ( not empty( na_zasob[k] ) ) {
+while ( czeka_na_zasoby[k] > 0 ) {
 	wait( inni[k], mutex[k] );
-	lock( mutex[k] );
 }
-// nikt inny nie czeka na zasob, wiec:
-if ( n + m > wolne_zasoby[k] ) {
-	czeka_na_zasoby[k] = n + m;
-	wait( na_zasob[k] );
+// nikt inny nie czeka na zasob, wiec ja czekam na zasob jesli trzeba:
+czeka_na_zasoby[k] = n + m;
+while ( czeka_na_zasoby[k] > wolne_zasoby[k] ) {
+	wait( na_zasob[k], mutex[k] );
 }
-
 // wyszedl wiec sa zasoby
 wolne_zasoby[k] -= n + m;
 czeka_na_zasoby[k] = 0;
 // byc moze sa tez inni, ktorzy czekali na zasob, teraz moge jednego z nich uwolnic
 signal( inni[k] );
+unlock( mutex[k] );
 
 // wysyla informacje do klientow
 // gdzie w IPC typkom ustawiamy odpowiednio na PID[0] i PID[1]
-// musi to byc w ochronie na wypadek, gdyby klient zdazyl wyslac zakonczenie
-// nim obecny watek usnie
 
 // czeka info od klientow, ze zakonczyli
 zawiesza sie na read od klientow
 
+lock( mutex[k] );
 // zwalnia zasoby
 wolne_zasoby[k] += n + m
 // jesli zwolnienie zasoby powoduje, ze moge uruchomic pierwszy czekajacy proces
-if ( czeka_na_zasoby[k] <= wolne_zasoby[k] ) {
+while ( czeka_na_zasoby[k] <= wolne_zasoby[k] ) {
 	signal( na_zasob[k] );
 }
+unlock( mutex[k] );
