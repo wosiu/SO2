@@ -65,6 +65,7 @@ int main( int argc, const char* argv[] )
         if ( msgrcv(queClSrvId, &msgClSrv, ClientServerMsgSize, 1L, 0 ) != ClientServerMsgSize )
             syserr("msgrcv queClSrvId");
 
+		printf("%hu %hu %hu\n", msgClSrv.k, msgClSrv.n, msgClSrv.pid);
 		// zrob watek
     }
 }
