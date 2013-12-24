@@ -44,4 +44,5 @@ wolne_zasoby[k] += n + m
 while ( czeka_na_zasoby[k] <= wolne_zasoby[k] ) {
 	signal( na_zasob[k] );
 }
-unlock( mutex[k] );*/
+unlock( mutex[k] );
+/**/

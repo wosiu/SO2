@@ -16,11 +16,39 @@ short int serwer_praca = 1;
 short int czeka_na_pare[MAX_K];
 short int wolne_zasoby[MAX_K];
 // TODO wyzerowac pola w strukturze?
-struct para_t {
+typedef struct {
 	short int pid[2], n[2], k;
-};
-struct para_t do_sparowania[MAX_K];
+} para_t;
+para_t do_sparowania[MAX_K];
 extern int errno;
+
+void init()
+{
+	if ( ( queClSrvId = msgget( CLIENT_SERVER_MKEY, 0666 | IPC_CREAT | IPC_EXCL ) ) == -1 )
+        syserr( "from %s, line %d: msgget CLIENT_SERVER_MKEY", __FILE__, __LINE__ );
+    if ( ( queThrClId = msgget( THREAD_CLIENT_MKEY, 0666 | IPC_CREAT | IPC_EXCL ) ) == -1 )
+        syserr( "from %s, line %d: msgget THREAD_CLIENT_MKEY", __FILE__, __LINE__ );
+    if ( ( queClThrId = msgget( CLIENT_THREAD_MKEY, 0666 | IPC_CREAT | IPC_EXCL ) ) == -1 )
+        syserr( "from %s, line %d: msgget CLIENT_THREAD_MKEY", __FILE__, __LINE__ );
+
+	int i;
+	for ( i = 0; i < K; i++ ) {
+		wolne_zasoby[i] = N;
+	}
+}
+
+void *klient( void *data )
+{
+	para_t para = *(para_t *)data;
+	free(data);
+  	pid_t thread_pid = getpid();
+
+ 	printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów.\n",
+		thread_pid, para.n[0], para.n[1], para.k, para.pid[0], para.pid[1],
+		wolne_zasoby[para.k] );
+
+	return 0;
+}
 
 
 void exit_server(int sig)
@@ -37,33 +65,6 @@ void exit_server(int sig)
     exit(0);
 }
 
-void *klient( void *data )
-{
-	struct para_t para = *(struct para_t *)data;
-	free(data);
-  	pid_t thread_pid = getpid();
-
- 	printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów.\n",
-		thread_pid, para.n[0], para.n[1], para.k, para.pid[0], para.pid[1],
-		wolne_zasoby[para.k] );
-
-	return 0;
-}
-
-void init()
-{
-	if ( ( queClSrvId = msgget( CLIENT_SERVER_MKEY, 0666 | IPC_CREAT | IPC_EXCL ) ) == -1 )
-        syserr( "from %s, line %d: msgget CLIENT_SERVER_MKEY", __FILE__, __LINE__ );
-    if ( ( queThrClId = msgget( THREAD_CLIENT_MKEY, 0666 | IPC_CREAT | IPC_EXCL ) ) == -1 )
-        syserr( "from %s, line %d: msgget THREAD_CLIENT_MKEY", __FILE__, __LINE__ );
-    if ( ( queClThrId = msgget( CLIENT_THREAD_MKEY, 0666 | IPC_CREAT | IPC_EXCL ) ) == -1 )
-        syserr( "from %s, line %d: msgget CLIENT_THREAD_MKEY", __FILE__, __LINE__ );
-
-	int i;
-	for ( i = 0; i < K; i++ ) {
-		wolne_zasoby[i] = N;
-	}
-}
 
 int main( int argc, const char* argv[] )
 {
@@ -83,7 +84,7 @@ int main( int argc, const char* argv[] )
   	pthread_t th;
   	pthread_attr_t attr;
 	int blad;
-	struct para_t* para = NULL;
+	para_t* para = NULL;
 
 	if ( ( blad = pthread_attr_init( &attr ) ) != 0 )
 		sysmerr( blad, "from %s, line %d: attrinit", __FILE__, __LINE__ );
@@ -102,7 +103,7 @@ int main( int argc, const char* argv[] )
 		} else {
 			do_sparowania[ msgClSrv.k ].n[1] = msgClSrv.n;
 			do_sparowania[ msgClSrv.k ].pid[1] = msgClSrv.pid;
-			para = (struct para_t*) malloc( sizeof( struct para_t ) );
+			para = (para_t*) malloc( sizeof( para_t ) );
     		*para = do_sparowania[ msgClSrv.k ];
 			do_sparowania[msgClSrv.k].k = 0;
 			// jest para, tworzymy dla niej watek
