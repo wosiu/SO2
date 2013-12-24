@@ -1,3 +1,6 @@
+#ifndef _MESG_
+#define _MESG_
+
 typedef struct {
 	long mesg_type;
 	unsigned short int k,n,pid;
@@ -30,3 +33,4 @@ const int ClientThreadMsgSize = sizeof( char  );
 #define	THREAD_CLIENT_MKEY	1236L
 #define	CLIENT_THREAD_MKEY	1237L
 
+#endif
