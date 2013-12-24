@@ -11,15 +11,16 @@
 
 #define MAX_K 100
 
-int K, N, queClSrvId, queThrClId, queClThrId;
-short int serwer_praca = 1;
+int queClSrvId, queThrClId, queClThrId;
+short int K, N, serwer_praca = 1;
 short int wolne_zasoby[MAX_K], czeka_na_zasoby[MAX_K];
 typedef struct { short int pid[2], n[2], k; } para_t;
 para_t do_sparowania[MAX_K];
 pthread_mutex_t mutex[MAX_K];
-pthread_cond_t inni[MAX_K], na_zasob[MAX_K], porzadki;
+pthread_cond_t inni[MAX_K], na_zasob[MAX_K], porzadki[MAX_K];
+short int aktywne_watki[MAX_K]; // do porzadkow przy zamykaniu serwera
 
-void exit_server(int sig)
+void serwer_off(int sig)
 {
 	int blad, i;
 
@@ -74,26 +75,26 @@ void init()
         syserr("from %s, line %d: msgget CL_SRV_MKEY", __FILE__, __LINE__);
     if ((queThrClId = msgget(THR_CL_MKEY, 0666 | IPC_CREAT | IPC_EXCL)) == -1) {
         fatal("from %s, line %d: msgget THR_CL_MKEY", __FILE__, __LINE__);
-        exit_server(0);
+        serwer_off(0);
     }
     if ((queClThrId = msgget(CL_THR_MKEY, 0666 | IPC_CREAT | IPC_EXCL)) == -1) {
         fatal("from %s, line %d: msgget CL_THR_MKEY", __FILE__, __LINE__);
-        exit_server(0);
+        serwer_off(0);
     }
 
 	// mutex i cond
 	for (i = 1; i <= K; i++) {
 		if ((blad = pthread_mutex_init(mutex + i, 0) != 0)) {
 			mfatal(blad, "mutex init");
-			exit_server(0);
+			serwer_off(0);
 		}
 		if ((blad = pthread_cond_init(inni + i, 0)) != 0) {
 			mfatal(blad, "cond init");
-			exit_server(0);
+			serwer_off(0);
 		}
 		if ((blad = pthread_cond_init(na_zasob + i, 0)) != 0) {
 			mfatal(blad, "cond init");
-			exit_server(0);
+			serwer_off(0);
 		}
 	}
 
@@ -107,7 +108,7 @@ void lock(pthread_mutex_t *mtx) {
 	int blad;
 	if ((blad = pthread_mutex_lock(mtx)) != 0 && serwer_praca) {
 		mfatal(blad, "from %s: mutex lock", __FILE__);
-		exit_server(0);
+		serwer_off(0);
 	}
 }
 
@@ -115,7 +116,7 @@ void unlock(pthread_mutex_t *mtx) {
 	int blad;
 	if ((blad = pthread_mutex_unlock(mtx)) != 0 && serwer_praca) {
 		mfatal(blad, "from %s: mutex unlock", __FILE__);
-		exit_server(0);
+		serwer_off(0);
 	}
 }
 
@@ -123,7 +124,7 @@ void cond_wait(pthread_cond_t *cond, pthread_mutex_t *mtx) {
 	int blad;
 	if ((blad = pthread_cond_wait(cond, mtx)) != 0 && serwer_praca) {
 		mfatal(blad, "from %s: wait on cond", __FILE__);
-		exit_server(0);
+		serwer_off(0);
 	}
 }
 
@@ -131,7 +132,7 @@ void cond_signal(pthread_cond_t *cond) {
 	int blad;
 	if ((blad = (pthread_cond_signal(cond))) != 0 && serwer_praca) {
 		mfatal(blad, "from %s: signal on cond", __FILE__);
-		exit_server(0);
+		serwer_off(0);
 	}
 }
 
@@ -180,14 +181,14 @@ void *klient(void *data)
     if (msgsnd(queThrClId, (char *) &msgThrCl, ThrCliMsgSize, 0) != 0
 			&& serwer_praca) {
         fatal("from %s, line %d: msgsnd queThrClId", __FILE__, __LINE__);
-        exit_server(0);
+        serwer_off(0);
     }
 	msgThrCl.mesg_type = (long)para.pid[1];
 	msgThrCl.partner_pid = para.pid[0];
 	if (msgsnd(queThrClId, (char *) &msgThrCl, ThrCliMsgSize, 0) != 0
 			&& serwer_praca) {
         fatal("from %s, line %d: msgsnd queThrClId", __FILE__, __LINE__);
-		exit_server(0);
+		serwer_off(0);
 	}
 
 	// czeka na informacje od klientow, ze zakonczyli
@@ -197,7 +198,7 @@ void *klient(void *data)
 		if (msgrcv(queClThrId, &msgClThr, CliThrMsgSize, mtype, 0)
 				!= CliThrMsgSize && serwer_praca) {
 			fatal("from %s, line %d: msgrcv queClThrId", __FILE__, __LINE__);
-			exit_server(0);
+			serwer_off(0);
 		}
 		if (!serwer_praca) { return 0; }
 	}
@@ -225,7 +226,7 @@ int main(int argc, const char* argv[])
 		syserr("Nieprawidlowa ilosc argumentow", __FILE__, __LINE__);
 	}
 
-	if (signal(SIGINT,  exit_server) == SIG_ERR)
+	if (signal(SIGINT,  serwer_off) == SIG_ERR)
         syserr("from %s, line %d: SIGINT signal", __FILE__, __LINE__);
 
     ClientServerMsg msgClSrv;
@@ -246,10 +247,11 @@ int main(int argc, const char* argv[])
         if (msgrcv(queClSrvId, &msgClSrv, CliSrvMsgSize, 1L, 0) != CliSrvMsgSize
 				&& serwer_praca) {
             fatal("from %s, line %d: msgrcv queClSrvId", __FILE__, __LINE__);
-			exit_server(0);
+			serwer_off(0);
         }
 		if (!serwer_praca) break;
 
+		// sprawdzamy czy jest para
 		if (do_sparowania[ msgClSrv.k ].k == 0) {
 			do_sparowania[ msgClSrv.k ].k = msgClSrv.k;
 			do_sparowania[ msgClSrv.k ].n[0] = msgClSrv.n;
@@ -265,7 +267,7 @@ int main(int argc, const char* argv[])
       			free(para);
       			mfatal(blad, "from %s, line %d: create", __FILE__, __LINE__);
       			if (serwer_praca)
-      				exit_server(0);
+      				serwer_off(0);
     		}
 		}
     }
