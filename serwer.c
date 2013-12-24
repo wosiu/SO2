@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
@@ -38,17 +36,6 @@ void exit_server(int sig)
 
     exit(0);
 }
-/*
-void *klient (void *data)
-{
-  pid_t thread_pid = getpid();
-
-  printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d \
-		zasobów.\n", thread_pid, m, n, k, pid0, pid1, wolne_zasoby[k] );
-
-  return 0;
-}
-*/
 
 void *klient( void *data )
 {
@@ -56,7 +43,6 @@ void *klient( void *data )
 	free(data);
   	pid_t thread_pid = getpid();
 
-	//printf("Watek %d\n", thread_pid);
  	printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów.\n",
 		thread_pid, para.n[0], para.n[1], para.k, para.pid[0], para.pid[1],
 		wolne_zasoby[para.k] );
@@ -123,8 +109,6 @@ int main( int argc, const char* argv[] )
     		if ( ( blad = pthread_create (&th, &attr, klient, (void *)para ) ) != 0 )
       			sysmerr ( blad, "from %s, line %d: create", __FILE__, __LINE__ );
 		}
-
-		//printf("%hu %hu %hu\n", msgClSrv.k, msgClSrv.n, msgClSrv.pid);
     }
     return 0;
 }
