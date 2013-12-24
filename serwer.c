@@ -151,7 +151,7 @@ void *klient(void *data)
 		if (!serwer_praca) { unlock(mutex + k); return 0;}
 	}
 
-	// nikt inny nie czeka na zasob, wiec ja czekam na zasob jesli trzeba:
+	// nikt inny nie czeka na zasob, wiec ja czekam na zasob (jesli nie ma):
 	czeka_na_zasoby[k] = para.n[0] + para.n[1];
 	while (czeka_na_zasoby[k] > wolne_zasoby[k]) {
 		cond_wait(na_zasob + k, mutex + k);
@@ -190,7 +190,7 @@ void *klient(void *data)
 		exit_server(0);
 	}
 
-	// czeka info od klientow, ze zakonczyli
+	// czeka na informacje od klientow, ze zakonczyli
 	long mtype = (para.pid[0] > para.pid[1]) ? para.pid[1] : para.pid[0];
 
 	for (i = 0; i < 2; i++) {
@@ -205,10 +205,10 @@ void *klient(void *data)
 	lock(mutex + k);
 	if (!serwer_praca) { unlock(mutex + k); return 0;}
 
-	// zwalnia zasoby
+	// zakonczyli, wiec zwalnia zasoby
 	wolne_zasoby[k] += para.n[0] + para.n[1];
-	// uruchamiam pierwszy czekajacy proces, jesli zwolniono dostatecznie
-	// duzo zasobow
+	// uruchamiam pierwszy czekajacy proces typu k, jesli zwolniono dostatecznie
+	// duzo takich zasobow
 	if (czeka_na_zasoby[k] <= wolne_zasoby[k]) {
 		cond_signal(na_zasob + k);
 	}
