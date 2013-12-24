@@ -13,16 +13,20 @@ if ( żodyn nie czeka na pare, np: czeka_na_para_PID[k] == -1 ) {
 
 // WATEK:
 lock( mutex[k] );
+if ( !serwer_praca ) { unlock(mutex[k]); return;}
 
 // czy ktos inny juz czeka na zasoby
 // if ( not empty( na_zasob[k] ) ) {
 while ( czeka_na_zasoby[k] > 0 ) {
 	wait( inni[k], mutex[k] );
+	if ( !serwer_praca ) { unlock(mutex[k]); return;}
 }
+
 // nikt inny nie czeka na zasob, wiec ja czekam na zasob jesli trzeba:
 czeka_na_zasoby[k] = n + m;
 while ( czeka_na_zasoby[k] > wolne_zasoby[k] ) {
 	wait( na_zasob[k], mutex[k] );
+	if ( !serwer_praca ) { unlock(mutex[k]); return;}
 }
 // wyszedl wiec sa zasoby
 wolne_zasoby[k] -= n + m;
@@ -38,10 +42,12 @@ unlock( mutex[k] );
 zawiesza sie na read od klientow
 
 lock( mutex[k] );
+if ( !serwer_praca ) { unlock(mutex[k]); return;}
+
 // zwalnia zasoby
 wolne_zasoby[k] += n + m
 // jesli zwolnienie zasoby powoduje, ze moge uruchomic pierwszy czekajacy proces
-while ( czeka_na_zasoby[k] <= wolne_zasoby[k] ) {
+if ( czeka_na_zasoby[k] <= wolne_zasoby[k] ) {
 	signal( na_zasob[k] );
 }
 unlock( mutex[k] );
