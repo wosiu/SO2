@@ -7,7 +7,7 @@
 #include "mesg.h"
 #include "err.h"
 
-int main( int argc, const char* argv[] )
+int main(int argc, const char* argv[])
 {
 	int k, n, s, queClSrvId, queThrClId, queClThrId;
     ClientServerMsg msgClSrv;
@@ -15,20 +15,20 @@ int main( int argc, const char* argv[] )
     ClientThreadMsg msgClThr;
 	short int myPID = getpid();
 
-	if ( argc == 4 ) {
-		k = atoi( argv[1] );
-		n = atoi( argv[2] );
-		s = atoi( argv[3] );
+	if (argc == 4) {
+		k = atoi(argv[1]);
+		n = atoi(argv[2]);
+		s = atoi(argv[3]);
 	} else {
-		syserr( "from %s, line %d: Incorrect number of arguments" );
+		syserr("from %s, line %d: Incorrect number of arguments");
 	}
 
-    if ( ( queClSrvId = msgget( CLIENT_SERVER_MKEY, 0 ) ) == -1 )
-        syserr( "from %s, line %d: msgget CLIENT_SERVER_MKEY", __FILE__, __LINE__ );
-    if ( ( queThrClId = msgget( THREAD_CLIENT_MKEY, 0 ) ) == -1 )
-        syserr( "from %s, line %d: msgget THREAD_CLIENT_MKEY", __FILE__, __LINE__ );
-    if ( ( queClThrId = msgget( CLIENT_THREAD_MKEY, 0 ) ) == -1 )
-        syserr( "from %s, line %d: msgget CLIENT_THREAD_MKEY", __FILE__, __LINE__ );
+    if ((queClSrvId = msgget(CL_SRV_MKEY, 0)) == -1)
+        syserr("from %s, line %d: msgget CL_SRV_MKEY", __FILE__, __LINE__);
+    if ((queThrClId = msgget(THR_CL_MKEY, 0)) == -1)
+        syserr("from %s, line %d: msgget THR_CL_MKEY", __FILE__, __LINE__);
+    if ((queClThrId = msgget(CL_THR_MKEY, 0)) == -1)
+        syserr("from %s, line %d: msgget CL_THR_MKEY", __FILE__, __LINE__);
 
 	// wysylanie rzadania o zasoby do serwera
     msgClSrv.mesg_type = 1L;
@@ -36,11 +36,11 @@ int main( int argc, const char* argv[] )
     msgClSrv.n = n;
     msgClSrv.pid = myPID;
 
-    if ( msgsnd( queClSrvId, (char *) &msgClSrv, ClientServerMsgSize, 0 ) != 0 )
-        syserr( "from %s, line %d: msgsnd queClSrvId", __FILE__, __LINE__ );
+    if (msgsnd(queClSrvId, (char *) &msgClSrv, CliSrvMsgSize, 0) != 0)
+        syserr("from %s, line %d: msgsnd queClSrvId", __FILE__, __LINE__);
 
     // oczekiwanie na zasoby
-    if ( msgrcv( queThrClId, &msgThrCl, ThreadClientMsgSize, (long) myPID, 0 ) != ThreadClientMsgSize )
+    if (msgrcv(queThrClId, &msgThrCl, ThrCliMsgSize, (long) myPID, 0) != ThrCliMsgSize)
     	syserr("from %s, line %d: msgrcv queThrClId", __FILE__, __LINE__);
 
 	// wykonywanie zadania
@@ -49,13 +49,13 @@ int main( int argc, const char* argv[] )
 	sleep(s);
 
 	// wyslanie informacji o zwrocie zasobow
-    long mtype = ( msgThrCl.partner_pid > myPID) ? myPID : msgThrCl.partner_pid;
+    long mtype = (msgThrCl.partner_pid > myPID) ? myPID : msgThrCl.partner_pid;
     msgClThr.mesg_type = mtype;
     msgClThr.finished = (char) 1;
-    if ( msgsnd( queClThrId, (char *) &msgClThr, ClientThreadMsgSize, 0 ) != 0 )
-        syserr( "from %s, line %d: msgsnd queClThrId, __FILE__, __LINE__" );
+    if (msgsnd(queClThrId, (char *) &msgClThr, CliThrMsgSize, 0) != 0)
+        syserr("from %s, line %d: msgsnd queClThrId, __FILE__, __LINE__");
 
-	printf( "%hu KONIEC\n", myPID );
+	printf("%hu KONIEC\n", myPID);
 	fflush(stdout);
     return 0;
 }
