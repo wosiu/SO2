@@ -19,7 +19,7 @@ typedef struct {
 
 const int ClientThreadMsgSize = sizeof( char  );
 
-// Teoretycznie zamiast 2 osobnych kolejek CLIENT-* moglaby byc jedna
+// Teoretycznie zamiast 2 osobnych kolejek CLIENT_* moglaby byc jedna
 // ale z praktycznego puntku widzenia, dzieki tej dodatkowej mozna zreazlizowac
 // ladniejsze sprzatanie podczas zlapania SIGINT (poniewaz oczekujemy wtedy
 // na zwolenienie zasobow przez klientow, a nowi klienci potencjalnie mogliby

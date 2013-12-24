@@ -45,6 +45,7 @@ int main( int argc, const char* argv[] )
 
 	// wykonywanie zadania
 	printf("%d %d %hu %hu\n", k, n, myPID, msgThrCl.partner_pid);
+	fflush(stdout);
 	sleep(s);
 
 	// wyslanie informacji o zwrocie zasobow
@@ -55,6 +56,6 @@ int main( int argc, const char* argv[] )
         syserr( "from %s, line %d: msgsnd queClThrId, __FILE__, __LINE__" );
 
 	printf( "%hu KONIEC\n", myPID );
-
+	fflush(stdout);
     return 0;
 }

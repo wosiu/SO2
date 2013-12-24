@@ -75,7 +75,7 @@ void *klient( void *data )
 {
 	para_t para = *(para_t *)data;
 	free(data);
-  	pid_t thread_pid = getpid();
+  	long thread_id = pthread_self();
 	int i, k = para.k;
 
 	lock( mutex + k );
@@ -100,9 +100,10 @@ void *klient( void *data )
 	cond_signal( inni + k );
 	unlock( mutex + k );
 
-	printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów.\n",
-		thread_pid, para.n[0], para.n[1], para.k, para.pid[0], para.pid[1],
+	printf("Wątek %ld przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów.\n",
+		thread_id, para.n[0], para.n[1], para.k, para.pid[0], para.pid[1],
 		wolne_zasoby[para.k] );
+	fflush(stdout);
 
 	ThreadClientMsg msgThrCl;
     ClientThreadMsg msgClThr;
