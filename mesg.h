@@ -30,6 +30,3 @@ const int ClientThreadMsgSize = sizeof( char  );
 #define	THREAD_CLIENT_MKEY	1236L
 #define	CLIENT_THREAD_MKEY	1237L
 
-// TODO: usunac ponizsze:
-#define	MKEY	1235L
-

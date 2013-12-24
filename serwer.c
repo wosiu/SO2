@@ -34,7 +34,7 @@ void init()
 
 }
 
-int main()
+int main( int argc, const char* argv[] )
 {
     ClientServerMsg mesg;
     int	n, filefd;
