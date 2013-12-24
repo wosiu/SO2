@@ -40,6 +40,8 @@ unlock( mutex[k] );
 
 // czeka info od klientow, ze zakonczyli
 zawiesza sie na read od klientow
+// if( serwer_praca && rcv cos spieprzyl )
+// blad
 
 lock( mutex[k] );
 if ( !serwer_praca ) { unlock(mutex[k]); return;}

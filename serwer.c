@@ -14,10 +14,8 @@
 int K, N, queClSrvId, queThrClId, queClThrId;
 short int serwer_praca = 1;
 short int wolne_zasoby[MAX_K], czeka_na_zasoby[MAX_K];
-// TODO wyzerowac pola w strukturze?
 typedef struct { short int pid[2], n[2], k; } para_t;
 para_t do_sparowania[MAX_K];
-
 pthread_mutex_t mutex[MAX_K];
 pthread_cond_t inni[MAX_K], na_zasob[MAX_K];
 
@@ -49,39 +47,104 @@ void init()
 	}
 }
 
+void lock( pthread_mutex_t *mtx ) {
+        int blad;
+        if ((blad = pthread_mutex_lock(mtx)) != 0 && serwer_praca)
+                err(blad, "from %s: mutex lock", __FILE__);
+}
+
+void unlock( pthread_mutex_t *mtx ) {
+        int blad;
+        if ((blad = pthread_mutex_unlock(mtx)) != 0 && serwer_praca )
+                err(blad, "from %s: mutex unlock", __FILE__);
+}
+
+void cond_wait( pthread_cond_t *cond, pthread_mutex_t *mtx ) {
+        int blad;
+        if ((blad = pthread_cond_wait(cond, mtx)) != 0 && serwer_praca)
+                err(blad, "from %s: wait on cond", __FILE__);
+}
+
+void cond_signal( pthread_cond_t *cond ) {
+        int blad;
+        if ((blad = (pthread_cond_signal(cond))) != 0 && serwer_praca )
+                err(blad, "from %s: signal on cond", __FILE__);
+}
+
 void *klient( void *data )
 {
 	para_t para = *(para_t *)data;
 	free(data);
   	pid_t thread_pid = getpid();
+	int i, k = para.k;
 
- 	printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów.\n",
+	lock( mutex + k );
+	if ( !serwer_praca ) { unlock( mutex + k ); return 0;}
+
+	// czy ktos inny juz czeka na zasoby
+	while ( czeka_na_zasoby[k] > 0 ) {
+		cond_wait( inni + k, mutex + k );
+		if ( !serwer_praca ) { unlock( mutex + k ); return 0;}
+	}
+
+	// nikt inny nie czeka na zasob, wiec ja czekam na zasob jesli trzeba:
+	czeka_na_zasoby[k] = para.n[0] + para.n[1];
+	while ( czeka_na_zasoby[k] > wolne_zasoby[k] ) {
+		cond_wait( na_zasob + k, mutex + k );
+		if ( !serwer_praca ) { unlock( mutex + k ); return 0;}
+	}
+	// wyszedl wiec sa zasoby, biore je
+	wolne_zasoby[k] -= czeka_na_zasoby[k];
+	czeka_na_zasoby[k] = 0;
+	// byc moze sa tez inni, ktorzy czekali na zasob, teraz moge jednego z nich uwolnic
+	cond_signal( inni + k );
+	unlock( mutex + k );
+
+	printf("Wątek %d przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów.\n",
 		thread_pid, para.n[0], para.n[1], para.k, para.pid[0], para.pid[1],
 		wolne_zasoby[para.k] );
 
+	ThreadClientMsg msgThrCl;
+    ClientThreadMsg msgClThr;
+
+	// wysyla informacje o partnerze do klientow
+	msgThrCl.mesg_type = (long)para.pid[0];
+	msgThrCl.partner_pid = para.pid[1];
+    if ( msgsnd( queThrClId, (char *) &msgThrCl, ThreadClientMsgSize, 0 ) != 0 && serwer_praca )
+        syserr( "from %s, line %d: msgsnd queThrClId", __FILE__, __LINE__ );
+
+	msgThrCl.mesg_type = (long)para.pid[1];
+	msgThrCl.partner_pid = para.pid[0];
+	if ( msgsnd( queThrClId, (char *) &msgThrCl, ThreadClientMsgSize, 0 ) != 0 && serwer_praca )
+        syserr( "from %s, line %d: msgsnd queThrClId", __FILE__, __LINE__ );
+
+	// czeka info od klientow, ze zakonczyli
+	long mtype = ( para.pid[0] > para.pid[1]) ? para.pid[1] : para.pid[0];
+
+	for ( i = 0; i < 2; i++ ) {
+		if ( msgrcv(queClThrId, &msgClThr, ClientThreadMsgSize, mtype, 0 ) != ClientThreadMsgSize && serwer_praca )
+			syserr("from %s, line %d: msgrcv queClThrId", __FILE__, __LINE__);
+		if ( !serwer_praca ) { return 0; }
+	}
+
+	lock( mutex + k );
+	if ( !serwer_praca ) { unlock( mutex + k ); return 0;}
+
+	// zwalnia zasoby
+	wolne_zasoby[k] += para.n[0] + para.n[1];
+	// jesli zwolnienie zasoby powoduje, ze moge uruchomic pierwszy czekajacy proces
+	if ( czeka_na_zasoby[k] <= wolne_zasoby[k] ) {
+		cond_signal( na_zasob + k );
+	}
+	unlock( mutex + k );
 	return 0;
 }
 
 void exit_server(int sig)
 {
 	int blad, i;
-	/*int n = 10;
-	char passed[n];
-	for ( int i = 0; i < n; i++ ) passed[i] = 1;*/
 
 	serwer_praca = 0;
-
-	// broadcast here
-
-	/* mutex i cond */
-	for ( i = 1; i <= K; i++ ) {
-		if ((blad = pthread_mutex_destroy(mutex + i) != 0))
-			mfatal (blad, "Exiting in %s, line %d: mutex destroy", __FILE__, __LINE__);
-		if ((blad = pthread_cond_destroy(inni + i)) != 0)
-			mfatal (blad, "Exiting in %s, line %d: cond destroy", __FILE__, __LINE__);
-		if ((blad = pthread_cond_destroy(na_zasob + i)) != 0)
-			mfatal (blad, "Exiting in %s, line %d: cond destroy", __FILE__, __LINE__);
-	}
 
 	/* kolejki IPC */
     if (msgctl(queClSrvId, IPC_RMID, 0) == -1)
@@ -90,6 +153,30 @@ void exit_server(int sig)
         fatal("Exiting in %s, line %d: msgctl RMID", __FILE__, __LINE__);
     if (msgctl(queClThrId, IPC_RMID, 0) == -1)
         fatal("Exiting in %s, line %d: msgctl RMID", __FILE__, __LINE__);
+
+
+	// odwieszamy wszystkich czekajacych na wait,
+	// zwroca mutex i zakoncza sie poniewaz serwer_praca = 0
+	for ( i = 1; i <= K; i++ ) {
+		if ((blad = pthread_cond_broadcast(inni + i)) != 0)
+			mfatal (blad, "Exiting in %s, line %d: cond broadcast", __FILE__, __LINE__);
+		if ((blad = pthread_cond_broadcast(na_zasob + i)) != 0)
+			mfatal (blad, "Exiting in %s, line %d: cond broadcast", __FILE__, __LINE__);
+	}
+
+	// czekamy az wszystkie watki na pewno sie zakoncza
+	// TODO
+
+	/* mutex i cond */
+	// poniewaz wszystko zwolnione, mozemy niszczyc
+	for ( i = 1; i <= K; i++ ) {
+		if ((blad = pthread_cond_destroy(inni + i)) != 0)
+			mfatal (blad, "Exiting in %s, line %d: cond destroy", __FILE__, __LINE__);
+		if ((blad = pthread_cond_destroy(na_zasob + i)) != 0)
+			mfatal (blad, "Exiting in %s, line %d: cond destroy", __FILE__, __LINE__);
+		if ((blad = pthread_mutex_destroy(mutex + i) != 0))
+			mfatal (blad, "Exiting in %s, line %d: mutex destroy", __FILE__, __LINE__);
+	}
 
     exit(0);
 }
@@ -122,8 +209,10 @@ int main( int argc, const char* argv[] )
 		err( blad, "from %s, line %d: setdetach", __FILE__, __LINE__ );
 
     while ( serwer_praca ) {
-        if ( msgrcv(queClSrvId, &msgClSrv, ClientServerMsgSize, 1L, 0 ) != ClientServerMsgSize )
+        if ( msgrcv(queClSrvId, &msgClSrv, ClientServerMsgSize, 1L, 0 ) != ClientServerMsgSize && serwer_praca)
             syserr("from %s, line %d: msgrcv queClSrvId", __FILE__, __LINE__);
+
+		if ( !serwer_praca ) break;
 
 		if ( do_sparowania[ msgClSrv.k ].k == 0 ) {
 			do_sparowania[ msgClSrv.k ].k = msgClSrv.k;
@@ -136,9 +225,8 @@ int main( int argc, const char* argv[] )
     		*para = do_sparowania[ msgClSrv.k ];
 			do_sparowania[msgClSrv.k].k = 0;
 			// jest para, tworzymy dla niej watek
-    		if ( ( blad = pthread_create (&th, &attr, klient, (void *)para ) ) != 0 )
+    		if ( ( blad = pthread_create (&th, &attr, klient, (void *)para ) ) != 0 && serwer_praca )
       			err ( blad, "from %s, line %d: create", __FILE__, __LINE__ );
 		}
     }
-    return 0;
 }

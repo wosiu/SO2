@@ -40,7 +40,7 @@ int main( int argc, const char* argv[] )
         syserr( "from %s, line %d: msgsnd queClSrvId", __FILE__, __LINE__ );
 
     // oczekiwanie na zasoby
-    if ( msgrcv( queThrClId, &msgThrCl, ThreadClientMsgSize, (long) myPID, 0 ) != ThreadClientMsgSize );
+    if ( msgrcv( queThrClId, &msgThrCl, ThreadClientMsgSize, (long) myPID, 0 ) != ThreadClientMsgSize )
     	syserr("from %s, line %d: msgrcv queThrClId", __FILE__, __LINE__);
 
 	// wykonywanie zadania
@@ -48,12 +48,13 @@ int main( int argc, const char* argv[] )
 	sleep(s);
 
 	// wyslanie informacji o zwrocie zasobow
-    msgClThr.mesg_type = (long) myPID;
+    long mtype = ( msgThrCl.partner_pid > myPID) ? myPID : msgThrCl.partner_pid;
+    msgClThr.mesg_type = mtype;
     msgClThr.finished = (char) 1;
     if ( msgsnd( queClThrId, (char *) &msgClThr, ClientThreadMsgSize, 0 ) != 0 )
         syserr( "from %s, line %d: msgsnd queClThrId, __FILE__, __LINE__" );
 
-	printf( "KONIEC %hu\n", myPID );
+	printf( "%hu KONIEC\n", myPID );
 
     return 0;
 }
