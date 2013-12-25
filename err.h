@@ -1,3 +1,7 @@
+/**
+* SO zadanie zaliczeniowe nr 2
+* Michal Wos mw336071
+*/
 #ifndef _ERR_
 #define _ERR_
 

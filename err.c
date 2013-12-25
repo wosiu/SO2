@@ -1,3 +1,7 @@
+/**
+* SO zadanie zaliczeniowe nr 2
+* Michal Wos mw336071
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

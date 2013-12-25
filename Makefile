@@ -1,3 +1,6 @@
+# SO zadanie zaliczeniowe nr 2
+# Michal Wos mw336071
+
 CFLAGS = -O2
 
 all: serwer klient
